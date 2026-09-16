@@ -30,6 +30,9 @@ const Newsletter = () => {
 
       <motion.form
         {...fadeUp(0.4)}
+        onSubmit={(e)=>{
+          e.preventDefault()
+        }}
         className="flex items-center max-w-2xl w-full md:h-13 h-12 shadow-md rounded-md overflow-hidden"
       >
         <input

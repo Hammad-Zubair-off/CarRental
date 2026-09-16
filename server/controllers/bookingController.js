@@ -6,6 +6,7 @@ import Car from "../models/Car.js";
 const checkAvailability = async (car, pickupDate, returnDate)=>{
     const bookings = await Booking.find({
         car,
+        status: { $ne: "cancelled" },
         pickupDate: {$lte: returnDate},
         returnDate: {$gte: pickupDate},
     })
@@ -16,6 +17,17 @@ const checkAvailability = async (car, pickupDate, returnDate)=>{
 export const checkAvailabilityOfCar = async (req, res)=>{
     try {
         const {location, pickupDate, returnDate} = req.body
+
+        if(!location || !pickupDate || !returnDate){
+            return res.json({success: false, message: "Location, pickup date and return date are required"})
+        }
+
+        const picked = new Date(pickupDate);
+        const returned = new Date(returnDate);
+
+        if(isNaN(picked) || isNaN(returned) || returned < picked){
+            return res.json({success: false, message: "Invalid date range"})
+        }
 
         // fetch all available cars for the given location
         const cars = await Car.find({location, isAvaliable: true})
@@ -43,17 +55,33 @@ export const createBooking = async (req, res)=>{
         const {_id} = req.user;
         const {car, pickupDate, returnDate} = req.body;
 
+        if(!car || !pickupDate || !returnDate){
+            return res.json({success: false, message: "Car, pickup date and return date are required"})
+        }
+
+        const picked = new Date(pickupDate);
+        const returned = new Date(returnDate);
+
+        if(isNaN(picked) || isNaN(returned)){
+            return res.json({success: false, message: "Invalid dates"})
+        }
+
+        if(returned < picked){
+            return res.json({success: false, message: "Return date must be on or after pickup date"})
+        }
+
+        const carData = await Car.findById(car)
+        if(!carData || !carData.owner || !carData.isAvaliable){
+            return res.json({success: false, message: "Car is not available"})
+        }
+
         const isAvailable = await checkAvailability(car, pickupDate, returnDate)
         if(!isAvailable){
             return res.json({success: false, message: "Car is not available"})
         }
 
-        const carData = await Car.findById(car)
-
-        // Calculate price based on pickupDate and returnDate
-        const picked = new Date(pickupDate);
-        const returned = new Date(returnDate);
-        const noOfDays = Math.ceil((returned - picked) / (1000 * 60 * 60 * 24))
+        // Inclusive day count so same-day bookings charge at least 1 day
+        const noOfDays = Math.max(1, Math.ceil((returned - picked) / (1000 * 60 * 60 * 24)) || 1)
         const price = carData.pricePerDay * noOfDays;
 
         await Booking.create({car, owner: carData.owner, user: _id, pickupDate, returnDate, price})
@@ -86,7 +114,10 @@ export const getOwnerBookings = async (req, res)=>{
         if(req.user.role !== 'owner'){
             return res.json({ success: false, message: "Unauthorized" })
         }
-        const bookings = await Booking.find({owner: req.user._id}).populate('car user').select("-user.password").sort({createdAt: -1 })
+        const bookings = await Booking.find({owner: req.user._id})
+            .populate('car')
+            .populate({ path: 'user', select: '-password' })
+            .sort({createdAt: -1 })
         res.json({success: true, bookings})
     } catch (error) {
         console.log(error.message);
@@ -99,8 +130,16 @@ export const changeBookingStatus = async (req, res)=>{
     try {
         const {_id} = req.user;
         const {bookingId, status} = req.body
+        const allowedStatuses = ['pending', 'confirmed', 'cancelled']
+
+        if(!allowedStatuses.includes(status)){
+            return res.json({ success: false, message: "Invalid status"})
+        }
 
         const booking = await Booking.findById(bookingId)
+        if(!booking){
+            return res.json({ success: false, message: "Booking not found"})
+        }
 
         if(booking.owner.toString() !== _id.toString()){
             return res.json({ success: false, message: "Unauthorized"})

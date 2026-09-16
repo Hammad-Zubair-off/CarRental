@@ -47,7 +47,7 @@ const Hero = () => {
             </div>
             <div className='flex flex-col items-start gap-2'>
                 <label htmlFor='return-date'>Return Date</label>
-                <input value={returnDate} onChange={e=>setReturnDate(e.target.value)} type="date" id="return-date" className='text-sm text-gray-500' required/>
+                <input value={returnDate} onChange={e=>setReturnDate(e.target.value)} type="date" id="return-date" className='text-sm text-gray-500' required min={pickupDate || new Date().toISOString().split('T')[0]}/>
             </div>
             
         </div>

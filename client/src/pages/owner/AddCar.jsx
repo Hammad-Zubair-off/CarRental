@@ -27,11 +27,26 @@ const AddCar = () => {
     e.preventDefault()
     if(isLoading) return null
 
+    if(!image){
+      toast.error('Please upload a car image')
+      return
+    }
+
+    if(!car.category || !car.transmission || !car.fuel_type || !car.location){
+      toast.error('Please fill all car details')
+      return
+    }
+
     setIsLoading(true)
     try {
       const formData = new FormData()
       formData.append('image', image)
-      formData.append('carData', JSON.stringify(car))
+      formData.append('carData', JSON.stringify({
+        ...car,
+        year: Number(car.year),
+        pricePerDay: Number(car.pricePerDay),
+        seating_capacity: Number(car.seating_capacity),
+      }))
 
       const {data} = await axios.post('/api/owner/add-car', formData)
 
@@ -54,7 +69,7 @@ const AddCar = () => {
         toast.error(data.message)
       }
     } catch (error) {
-      toast.error(error.message)
+      toast.error(error.response?.data?.message || error.message)
     }finally{
       setIsLoading(false)
     }
@@ -101,7 +116,7 @@ const AddCar = () => {
           </div>
           <div className='flex flex-col w-full'>
             <label>Category</label>
-            <select onChange={e=> setCar({...car, category: e.target.value})} value={car.category} className='px-3 py-2 mt-1 border border-borderColor rounded-md outline-none'>
+            <select required onChange={e=> setCar({...car, category: e.target.value})} value={car.category} className='px-3 py-2 mt-1 border border-borderColor rounded-md outline-none'>
               <option value="">Select a category</option>
               <option value="Sedan">Sedan</option>
               <option value="SUV">SUV</option>
@@ -114,7 +129,7 @@ const AddCar = () => {
         <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6'>
           <div className='flex flex-col w-full'>
             <label>Transmission</label>
-            <select onChange={e=> setCar({...car, transmission: e.target.value})} value={car.transmission} className='px-3 py-2 mt-1 border border-borderColor rounded-md outline-none'>
+            <select required onChange={e=> setCar({...car, transmission: e.target.value})} value={car.transmission} className='px-3 py-2 mt-1 border border-borderColor rounded-md outline-none'>
               <option value="">Select a transmission</option>
               <option value="Automatic">Automatic</option>
               <option value="Manual">Manual</option>
@@ -123,7 +138,7 @@ const AddCar = () => {
           </div>
           <div className='flex flex-col w-full'>
             <label>Fuel Type</label>
-            <select onChange={e=> setCar({...car, fuel_type: e.target.value})} value={car.fuel_type} className='px-3 py-2 mt-1 border border-borderColor rounded-md outline-none'>
+            <select required onChange={e=> setCar({...car, fuel_type: e.target.value})} value={car.fuel_type} className='px-3 py-2 mt-1 border border-borderColor rounded-md outline-none'>
               <option value="">Select a fuel type</option>
               <option value="Gas">Gas</option>
               <option value="Diesel">Diesel</option>
@@ -141,7 +156,7 @@ const AddCar = () => {
          {/* Car Location */}
          <div className='flex flex-col w-full'>
             <label>Location</label>
-            <select onChange={e=> setCar({...car, location: e.target.value})} value={car.location} className='px-3 py-2 mt-1 border border-borderColor rounded-md outline-none'>
+            <select required onChange={e=> setCar({...car, location: e.target.value})} value={car.location} className='px-3 py-2 mt-1 border border-borderColor rounded-md outline-none'>
               <option value="">Select a location</option>
               <option value="New York">New York</option>
               <option value="Los Angeles">Los Angeles</option>

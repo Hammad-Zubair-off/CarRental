@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import Title from '../components/Title'
-import { assets, dummyCarData } from '../assets/assets'
+import { assets } from '../assets/assets'
 import CarCard from '../components/CarCard'
 import { useSearchParams } from 'react-router-dom'
 import { useAppContext } from '../context/AppContext'
@@ -18,18 +18,20 @@ const Cars = () => {
   const {cars, axios} = useAppContext()
 
   const [input, setInput] = useState('')
+  const [availableCars, setAvailableCars] = useState([])
 
   const isSearchData = pickupLocation && pickupDate && returnDate
   const [filteredCars, setFilteredCars] = useState([])
 
-  const applyFilter = async ()=>{
+  const applyFilter = ()=>{
+    const source = isSearchData ? availableCars : cars
      
     if(input === ''){
-      setFilteredCars(cars)
-      return null
+      setFilteredCars(source)
+      return
     }
 
-    const filtered = cars.slice().filter((car)=>{
+    const filtered = source.slice().filter((car)=>{
       return car.brand.toLowerCase().includes(input.toLowerCase())
       || car.model.toLowerCase().includes(input.toLowerCase())  
       || car.category.toLowerCase().includes(input.toLowerCase())  
@@ -39,23 +41,35 @@ const Cars = () => {
   }
 
   const searchCarAvailablity = async () =>{
-    const {data} = await axios.post('/api/bookings/check-availability', {location: pickupLocation, pickupDate, returnDate})
-    if (data.success) {
-      setFilteredCars(data.availableCars)
-      if(data.availableCars.length === 0){
-        toast('No cars available')
+    try {
+      const {data} = await axios.post('/api/bookings/check-availability', {location: pickupLocation, pickupDate, returnDate})
+      if (data.success) {
+        setAvailableCars(data.availableCars)
+        setFilteredCars(data.availableCars)
+        if(data.availableCars.length === 0){
+          toast('No cars available')
+        }
+      }else{
+        toast.error(data.message)
       }
-      return null
+    } catch (error) {
+      toast.error(error.response?.data?.message || error.message)
     }
   }
 
   useEffect(()=>{
-    isSearchData && searchCarAvailablity()
+    if(isSearchData){
+      searchCarAvailablity()
+    }
   },[])
 
   useEffect(()=>{
-    cars.length > 0 && !isSearchData && applyFilter()
-  },[input, cars])
+    if(isSearchData){
+      applyFilter()
+    }else if(cars.length > 0 || !isSearchData){
+      applyFilter()
+    }
+  },[input, cars, availableCars])
 
   return (
     <div>
@@ -92,7 +106,7 @@ const Cars = () => {
 
         <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 mt-4 xl:px-20 max-w-7xl mx-auto'>
           {filteredCars.map((car, index)=> (
-            <motion.div key={index}
+            <motion.div key={car._id || index}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 * index, duration: 0.4 }}

@@ -10,16 +10,26 @@ export const AppContext = createContext();
 export const AppProvider = ({ children })=>{
 
     const navigate = useNavigate()
-    const currency = import.meta.env.VITE_CURRENCY
+    const currency = import.meta.env.VITE_CURRENCY || '$'
 
     const [token, setToken] = useState(null)
     const [user, setUser] = useState(null)
     const [isOwner, setIsOwner] = useState(false)
+    const [authLoading, setAuthLoading] = useState(true)
     const [showLogin, setShowLogin] = useState(false)
     const [pickupDate, setPickupDate] = useState('')
     const [returnDate, setReturnDate] = useState('')
 
     const [cars, setCars] = useState([])
+    const [carsLoaded, setCarsLoaded] = useState(false)
+
+    const clearSession = ()=>{
+        localStorage.removeItem('token')
+        setToken(null)
+        setUser(null)
+        setIsOwner(false)
+        axios.defaults.headers.common['Authorization'] = ''
+    }
 
     // Function to check if user is logged in
     const fetchUser = async ()=>{
@@ -29,10 +39,14 @@ export const AppProvider = ({ children })=>{
             setUser(data.user)
             setIsOwner(data.user.role === 'owner')
            }else{
+            clearSession()
             navigate('/')
            }
         } catch (error) {
-            toast.error(error.message)
+            clearSession()
+            toast.error(error.response?.data?.message || error.message)
+        } finally {
+            setAuthLoading(false)
         }
     }
     // Function to fetch all cars from the server
@@ -42,39 +56,42 @@ export const AppProvider = ({ children })=>{
             const {data} = await axios.get('/api/user/cars')
             data.success ? setCars(data.cars) : toast.error(data.message)
         } catch (error) {
-            toast.error(error.message)
+            toast.error(error.response?.data?.message || error.message)
+        } finally {
+            setCarsLoaded(true)
         }
     }
 
     // Function to log out the user
     const logout = ()=>{
-        localStorage.removeItem('token')
-        setToken(null)
-        setUser(null)
-        setIsOwner(false)
-        axios.defaults.headers.common['Authorization'] = ''
+        clearSession()
         toast.success('You have been logged out')
     }
 
 
     // useEffect to retrieve the token from localStorage
     useEffect(()=>{
-        const token = localStorage.getItem('token')
-        setToken(token)
+        const storedToken = localStorage.getItem('token')
+        if(storedToken){
+            axios.defaults.headers.common['Authorization'] = storedToken
+            setToken(storedToken)
+        }else{
+            setAuthLoading(false)
+        }
         fetchCars()
     },[])
 
     // useEffect to fetch user data when token is available
     useEffect(()=>{
         if(token){
-            axios.defaults.headers.common['Authorization'] = `${token}`
+            axios.defaults.headers.common['Authorization'] = token
             fetchUser()
         }
     },[token])
 
     const value = {
         navigate, currency, axios, user, setUser,
-        token, setToken, isOwner, setIsOwner, fetchUser, showLogin, setShowLogin, logout, fetchCars, cars, setCars, 
+        token, setToken, isOwner, setIsOwner, authLoading, fetchUser, showLogin, setShowLogin, logout, fetchCars, cars, setCars, carsLoaded,
         pickupDate, setPickupDate, returnDate, setReturnDate
     }
 

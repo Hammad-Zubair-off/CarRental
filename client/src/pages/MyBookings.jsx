@@ -7,7 +7,7 @@ import { motion } from 'motion/react'
 
 const MyBookings = () => {
 
-  const { axios, user, currency } = useAppContext()
+  const { axios, user, currency, setShowLogin } = useAppContext()
 
   const [bookings, setBookings] = useState([])
 
@@ -20,13 +20,19 @@ const MyBookings = () => {
         toast.error(data.message)
       }
     } catch (error) {
-      toast.error(error.message)
+      toast.error(error.response?.data?.message || error.message)
     }
   }
 
   useEffect(()=>{
     user && fetchMyBookings()
   },[user])
+
+  const statusClass = (status)=>{
+    if(status === 'confirmed') return 'bg-green-400/15 text-green-600'
+    if(status === 'pending') return 'bg-yellow-400/15 text-yellow-700'
+    return 'bg-red-400/15 text-red-600'
+  }
 
   return (
     <motion.div 
@@ -40,6 +46,12 @@ const MyBookings = () => {
        subTitle='View and manage your all car bookings'
        align="left"/>
 
+       {!user ? (
+         <div className='mt-12 text-center text-gray-500'>
+           <p className='mb-4'>Please log in to view your bookings.</p>
+           <button onClick={()=> setShowLogin(true)} className='px-6 py-2 bg-primary text-white rounded-lg cursor-pointer'>Login</button>
+         </div>
+       ) : (
        <div>
         {bookings.map((booking, index)=>(
           <motion.div 
@@ -63,7 +75,7 @@ const MyBookings = () => {
             <div className='md:col-span-2'>
               <div className='flex items-center gap-2'>
                 <p className='px-3 py-1.5 bg-light rounded'>Booking #{index+1}</p>
-                <p className={`px-3 py-1 text-xs rounded-full ${booking.status === 'confirmed' ? 'bg-green-400/15 text-green-600' : 'bg-red-400/15 text-red-600'}`}>{booking.status}</p>
+                <p className={`px-3 py-1 text-xs rounded-full ${statusClass(booking.status)}`}>{booking.status}</p>
               </div>
 
               <div className='flex items-start gap-2 mt-3'>
@@ -96,6 +108,7 @@ const MyBookings = () => {
           </motion.div>
         ))}
        </div>
+       )}
       
     </motion.div>
   )

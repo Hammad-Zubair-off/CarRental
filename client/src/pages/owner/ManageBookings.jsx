@@ -5,7 +5,7 @@ import toast from 'react-hot-toast'
 
 const ManageBookings = () => {
 
-  const { currency, axios } = useAppContext()
+  const { currency, axios, isOwner, token } = useAppContext()
 
   const [bookings, setBookings] = useState([])
 
@@ -14,7 +14,7 @@ const ManageBookings = () => {
       const { data } = await axios.get('/api/bookings/owner')
       data.success ? setBookings(data.bookings) : toast.error(data.message)
     } catch (error) {
-      toast.error(error.message)
+      toast.error(error.response?.data?.message || error.message)
     }
   }
 
@@ -29,13 +29,15 @@ const ManageBookings = () => {
       }
       
     } catch (error) {
-      toast.error(error.message)
+      toast.error(error.response?.data?.message || error.message)
     }
   }
 
   useEffect(()=>{
-    fetchOwnerBookings()
-  },[])
+    if(token && isOwner){
+      fetchOwnerBookings()
+    }
+  },[token, isOwner])
 
   return (
     <div className='px-4 pt-10 md:px-10 w-full'>
