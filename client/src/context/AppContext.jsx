@@ -3,7 +3,17 @@ import axios from 'axios'
 import {toast} from 'react-hot-toast'
 import { useNavigate } from "react-router-dom";
 
-axios.defaults.baseURL = import.meta.env.VITE_BASE_URL || 'http://localhost:3000'
+axios.defaults.baseURL = (() => {
+    const fromEnv = import.meta.env.VITE_BASE_URL
+    const productionApi = 'https://car-rental-roan-delta.vercel.app'
+
+    // Never ship localhost in production builds (Vercel env can override .env files)
+    if (import.meta.env.PROD && (!fromEnv || /localhost|127\.0\.0\.1/.test(fromEnv))) {
+        return productionApi
+    }
+
+    return fromEnv || 'http://localhost:3000'
+})()
 
 export const AppContext = createContext();
 
