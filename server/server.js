@@ -12,8 +12,22 @@ const app = express()
 // Connect Database
 await connectDB()
 
-// Middleware
-app.use(cors());
+// Middleware — allow local + production frontend origins
+const allowedOrigins = (process.env.CLIENT_URLS || 'http://localhost:5173,https://car-rental-tawny-iota.vercel.app')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean)
+
+app.use(cors({
+    origin(origin, callback) {
+        // Allow non-browser / same-origin requests (no Origin header)
+        if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+            return callback(null, true)
+        }
+        return callback(null, false)
+    },
+    credentials: true,
+}));
 app.use(express.json());
 
 app.get('/', (req, res)=> res.send("Server is running"))
