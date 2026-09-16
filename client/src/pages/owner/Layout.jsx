@@ -3,15 +3,25 @@ import NavbarOwner from '../../components/owner/NavbarOwner'
 import Sidebar from '../../components/owner/Sidebar'
 import { Outlet } from 'react-router-dom'
 import { useAppContext } from '../../context/AppContext'
+import Loader from '../../components/Loader'
 
 const Layout = () => {
-  const {isOwner, navigate} = useAppContext()
+  const {isOwner, authLoading, navigate} = useAppContext()
 
   useEffect(()=>{
-    if(!isOwner){
+    if(!authLoading && !isOwner){
       navigate('/')
     }
-  },[isOwner])
+  },[isOwner, authLoading, navigate])
+
+  if(authLoading){
+    return <Loader />
+  }
+
+  if(!isOwner){
+    return null
+  }
+
   return (
     <div className='flex flex-col'>
       <NavbarOwner />

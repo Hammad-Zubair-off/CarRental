@@ -22,31 +22,42 @@ export const changeRoleToOwner = async (req, res)=>{
 export const addCar = async (req, res)=>{
     try {
         const {_id} = req.user;
+        if(!req.file){
+            return res.json({success: false, message: "Car image is required"})
+        }
+        if(!req.body.carData){
+            return res.json({success: false, message: "Car data is required"})
+        }
+
         let car = JSON.parse(req.body.carData);
         const imageFile = req.file;
 
         // Upload Image to ImageKit
         const fileBuffer = fs.readFileSync(imageFile.path)
-        const response = await imagekit.upload({
-            file: fileBuffer,
-            fileName: imageFile.originalname,
-            folder: '/cars'
-        })
+        try {
+            const response = await imagekit.upload({
+                file: fileBuffer,
+                fileName: imageFile.originalname,
+                folder: '/cars'
+            })
 
-        // optimization through imagekit URL transformation
-        var optimizedImageUrl = imagekit.url({
-            path : response.filePath,
-            transformation : [
-                {width: '1280'}, // Width resizing
-                {quality: 'auto'}, // Auto compression
-                { format: 'webp' }  // Convert to modern format
-            ]
-        });
+            // optimization through imagekit URL transformation
+            var optimizedImageUrl = imagekit.url({
+                path : response.filePath,
+                transformation : [
+                    {width: '1280'}, // Width resizing
+                    {quality: 'auto'}, // Auto compression
+                    { format: 'webp' }  // Convert to modern format
+                ]
+            });
 
-        const image = optimizedImageUrl;
-        await Car.create({...car, owner: _id, image})
+            const image = optimizedImageUrl;
+            await Car.create({...car, owner: _id, image})
 
-        res.json({success: true, message: "Car Added"})
+            res.json({success: true, message: "Car Added"})
+        } finally {
+            fs.unlink(imageFile.path, () => {})
+        }
 
     } catch (error) {
         console.log(error.message);
@@ -73,6 +84,10 @@ export const toggleCarAvailability = async (req, res) =>{
         const {carId} = req.body
         const car = await Car.findById(carId)
 
+        if(!car || !car.owner){
+            return res.json({ success: false, message: "Car not found" });
+        }
+
         // Checking is car belongs to the user
         if(car.owner.toString() !== _id.toString()){
             return res.json({ success: false, message: "Unauthorized" });
@@ -94,6 +109,10 @@ export const deleteCar = async (req, res) =>{
         const {_id} = req.user;
         const {carId} = req.body
         const car = await Car.findById(carId)
+
+        if(!car || !car.owner){
+            return res.json({ success: false, message: "Car not found" });
+        }
 
         // Checking is car belongs to the user
         if(car.owner.toString() !== _id.toString()){
@@ -127,8 +146,12 @@ export const getDashboardData = async (req, res) =>{
         const pendingBookings = await Booking.find({owner: _id, status: "pending" })
         const completedBookings = await Booking.find({owner: _id, status: "confirmed" })
 
-        // Calculate monthlyRevenue from bookings where status is confirmed
-        const monthlyRevenue = bookings.slice().filter(booking => booking.status === 'confirmed').reduce((acc, booking)=> acc + booking.price, 0)
+        // Calculate monthlyRevenue from confirmed bookings in the current month
+        const now = new Date()
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+        const monthlyRevenue = bookings
+            .filter(booking => booking.status === 'confirmed' && new Date(booking.createdAt) >= startOfMonth)
+            .reduce((acc, booking)=> acc + booking.price, 0)
 
         const dashboardData = {
             totalCars: cars.length,
@@ -153,33 +176,41 @@ export const updateUserImage = async (req, res)=>{
     try {
         const { _id } = req.user;
 
+        if(!req.file){
+            return res.json({success: false, message: "Image is required"})
+        }
+
         const imageFile = req.file;
 
         // Upload Image to ImageKit
         const fileBuffer = fs.readFileSync(imageFile.path)
-        const response = await imagekit.upload({
-            file: fileBuffer,
-            fileName: imageFile.originalname,
-            folder: '/users'
-        })
+        try {
+            const response = await imagekit.upload({
+                file: fileBuffer,
+                fileName: imageFile.originalname,
+                folder: '/users'
+            })
 
-        // optimization through imagekit URL transformation
-        var optimizedImageUrl = imagekit.url({
-            path : response.filePath,
-            transformation : [
-                {width: '400'}, // Width resizing
-                {quality: 'auto'}, // Auto compression
-                { format: 'webp' }  // Convert to modern format
-            ]
-        });
+            // optimization through imagekit URL transformation
+            var optimizedImageUrl = imagekit.url({
+                path : response.filePath,
+                transformation : [
+                    {width: '400'}, // Width resizing
+                    {quality: 'auto'}, // Auto compression
+                    { format: 'webp' }  // Convert to modern format
+                ]
+            });
 
-        const image = optimizedImageUrl;
+            const image = optimizedImageUrl;
 
-        await User.findByIdAndUpdate(_id, {image});
-        res.json({success: true, message: "Image Updated" })
+            await User.findByIdAndUpdate(_id, {image});
+            res.json({success: true, message: "Image Updated" })
+        } finally {
+            fs.unlink(imageFile.path, () => {})
+        }
 
     } catch (error) {
         console.log(error.message);
         res.json({success: false, message: error.message})
     }
-}   
+}

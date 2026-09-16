@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { assets, dummyCarData } from '../assets/assets'
+import { assets } from '../assets/assets'
 import Loader from '../components/Loader'
 import { useAppContext } from '../context/AppContext'
 import toast from 'react-hot-toast'
@@ -10,14 +10,21 @@ const CarDetails = () => {
 
   const {id} = useParams()
 
-  const {cars, axios, pickupDate, setPickupDate, returnDate, setReturnDate} = useAppContext()
+  const {cars, axios, pickupDate, setPickupDate, returnDate, setReturnDate, user, setShowLogin, currency, carsLoaded} = useAppContext()
 
   const navigate = useNavigate()
   const [car, setCar] = useState(null)
-  const currency = import.meta.env.VITE_CURRENCY
 
   const handleSubmit = async (e)=>{
     e.preventDefault();
+    if(!user){
+      setShowLogin(true)
+      return
+    }
+    if(returnDate < pickupDate){
+      toast.error('Return date must be on or after pickup date')
+      return
+    }
     try {
       const {data} = await axios.post('/api/bookings/create', {
         car: id,
@@ -32,15 +39,30 @@ const CarDetails = () => {
         toast.error(data.message)
       }
     } catch (error) {
-      toast.error(error.message)
+      toast.error(error.response?.data?.message || error.message)
     }
   }
 
   useEffect(()=>{
-    setCar(cars.find(car => car._id === id))
+    setCar(cars.find(car => car._id === id) || null)
   },[cars, id])
 
-  return car ? (
+  if(!carsLoaded){
+    return <Loader />
+  }
+
+  if(!car){
+    return (
+      <div className='px-6 md:px-16 lg:px-24 xl:px-32 mt-16 text-center'>
+        <p className='text-xl text-gray-600 mb-4'>Car not found or unavailable</p>
+        <button onClick={()=> navigate('/cars')} className='px-6 py-2 bg-primary text-white rounded-lg cursor-pointer'>
+          Browse cars
+        </button>
+      </div>
+    )
+  }
+
+  return (
     <div className='px-6 md:px-16 lg:px-24 xl:px-32 mt-16'>
 
       <button onClick={()=> navigate(-1)} className='flex items-center gap-2 mb-6 text-gray-500 cursor-pointer'>
@@ -137,7 +159,7 @@ const CarDetails = () => {
             <div className='flex flex-col gap-2'>
               <label htmlFor="return-date">Return Date</label>
               <input value={returnDate} onChange={(e)=>setReturnDate(e.target.value)}
-              type="date" className='border border-borderColor px-3 py-2 rounded-lg' required id='return-date'/>
+              type="date" className='border border-borderColor px-3 py-2 rounded-lg' required id='return-date' min={pickupDate || new Date().toISOString().split('T')[0]}/>
             </div>
 
             <button className='w-full bg-primary hover:bg-primary-dull transition-all py-3 font-medium text-white rounded-xl cursor-pointer'>Book Now</button>
@@ -148,7 +170,7 @@ const CarDetails = () => {
        </div>
 
     </div>
-  ) : <Loader />
+  )
 }
 
 export default CarDetails
